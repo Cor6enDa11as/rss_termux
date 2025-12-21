@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+🚀 RSS to Telegram Bot (Termux Optimized)
+"""
+
 import os
 import json
 import feedparser
@@ -19,9 +23,12 @@ if not BOT_TOKEN or not CHANNEL_ID:
     logging.error("❌ Установите BOT_TOKEN и CHANNEL_ID в .env файле!")
     exit(1)
 
-REQUEST_DELAY = (int(os.getenv('REQUEST_DELAY_MIN', '3')),
-                 int(os.getenv('REQUEST_DELAY_MAX', '7')))
-MAX_HOURS_BACK = int(os.getenv('MAX_HOURS_BACK', '24'))
+# ✅ ТЕРМИНАЛЬНЫЕ НАСТРОЙКИ TERMUX
+CONFIG = {
+    'REQUEST_DELAY_MIN': int(os.getenv('REQUEST_DELAY_MIN', '8')),
+    'REQUEST_DELAY_MAX': int(os.getenv('REQUEST_DELAY_MAX', '20')),
+    'MAX_HOURS_BACK': int(os.getenv('MAX_HOURS_BACK', '4'))
+}
 
 # ==================== Настройка логирования ====================
 logging.basicConfig(
@@ -37,14 +44,14 @@ def load_rss_feeds():
     """📰 Загружает RSS-ленты и хэштеги"""
     feeds = []
     hashtags = {}
-
+    
     try:
         with open('feeds.txt', 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith('#'):
                     continue
-
+                
                 if '#' in line:
                     url, tag = line.split('#', 1)
                     feeds.append(url.strip())
@@ -52,15 +59,15 @@ def load_rss_feeds():
                 else:
                     feeds.append(line)
                     hashtags[line] = '#новости'
-
+    
     except FileNotFoundError:
         logger.error("❌ Файл feeds.txt не найден")
         exit(1)
-
+    
     if not feeds:
         logger.error("❌ Нет RSS-лент")
         exit(1)
-
+    
     logger.info(f"📰 Загружено: {len(feeds)} лент")
     return feeds, hashtags
 
@@ -82,38 +89,22 @@ def save_dates(dates_dict):
     for url, info in dates_dict.items():
         if isinstance(info, dict) and 'last_date' in info:
             data_to_save[url] = {'last_date': info['last_date'].isoformat()}
-
+    
     with open('dates.json', 'w', encoding='utf-8') as f:
         json.dump(data_to_save, f, indent=2, ensure_ascii=False)
 
-def is_russian_text(text):
-    """🔤 Проверяет, есть ли в тексте русские буквы"""
-    return any('а' <= char <= 'я' for char in text.lower())
-
-def translate_text(text):
-    """🌐 Переводит текст на русский (если нужно)"""
-    try:
-        if not text or len(text) < 3:
-            return text, False
-
-        url = "https://translate.googleapis.com/translate_a/single"
-        params = {'client': 'gtx', 'sl': 'auto', 'tl': 'ru', 'dt': 't', 'q': text[:500]}
-        response = requests.get(url, params=params, timeout=5)
-
-        if response.status_code == 200:
-            translated = response.json()[0][0][0]
-            if translated and translated.strip() and translated != text:
-                return translated, True
-        return text, False
-    except Exception:
-        return text, False
-
-def send_to_telegram(title, link, feed_url, hashtags_dict):
-    """📨 Отправляет сообщение"""
+def send_to_telegram(title, link, feed_url, hashtags_dict, entry):
+    """📨 Отправляет сообщение (ПРЕВЬЮ СВЕРХУ!)"""
     try:
         clean_title = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        hashtag = f"🏷️  {hashtags_dict.get(feed_url, '#новости')}"
-        message = f'📢  <a href="{link}"><b>{clean_title}</b></a>\n{hashtag}'
+        hashtag = hashtags_dict.get(feed_url, '#новости')
+        
+        author = getattr(entry, 'author', '')
+        if author:
+            author_hashtag = author.replace(" ", "")
+            message = f'<a href="{link}">{clean_title}</a>\n\n📌 {hashtag} 👤 #{author_hashtag}'
+        else:
+            message = f'<a href="{link}">{clean_title}</a>\n\n📌 {hashtag}'
 
         data = {
             'chat_id': CHANNEL_ID,
@@ -128,10 +119,16 @@ def send_to_telegram(title, link, feed_url, hashtags_dict):
 
         response = requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage',
                                data=data, timeout=10)
-        return response.status_code == 200
-
+        
+        if response.status_code == 200:
+            time.sleep(random.uniform(20, 30))
+            return True
+        else:
+            logger.error(f"❌ TG ответ: {response.status_code}")
+            return False
+        
     except Exception as e:
-        logger.error(f"🤖 Ошибка: {e}")
+        logger.error(f"🤖 Ошибка отправки: {e}")
         return False
 
 def parse_feed(url):
@@ -156,23 +153,23 @@ def get_entry_date(entry):
 def check_feeds():
     """🔍 Основная функция проверки лент"""
     logger.info("=" * 60)
-    logger.info("🔍 Начало проверки новостей")
+    logger.info(f"🤖 [{len(RSS_FEEDS)} лент] {datetime.now().strftime('%H:%M')}")
     start_time = time.time()
 
-    RSS_FEEDS, HASHTAGS = load_rss_feeds()
     dates = load_dates()
     sent_count = 0
 
     for feed_url in RSS_FEEDS:
         try:
             logger.info(f"📰 Проверка: {feed_url[:50]}...")
-
+            
             last_date = dates.get(feed_url, {}).get('last_date')
-            threshold_date = (datetime.now(timezone.utc) - timedelta(hours=MAX_HOURS_BACK)
+            threshold_date = (datetime.now(timezone.utc) - timedelta(hours=CONFIG['MAX_HOURS_BACK']) 
                             if last_date is None else last_date)
 
             feed = parse_feed(feed_url)
             if not feed:
+                time.sleep(random.uniform(CONFIG['REQUEST_DELAY_MIN'], CONFIG['REQUEST_DELAY_MAX']))
                 continue
 
             new_entries = []
@@ -188,35 +185,30 @@ def check_feeds():
                 for entry, pub_date in new_entries:
                     title = getattr(entry, 'title', 'Без названия')
                     link = getattr(entry, 'link', '')
-
+                    
                     if not link:
                         continue
 
-                    if not is_russian_text(title):
-                        title, _ = translate_text(title)
-
                     logger.info(f"  📤 Отправка [{pub_date.strftime('%H:%M')}]: {title[:60]}...")
-
-                    if send_to_telegram(title, link, feed_url, HASHTAGS):
+                    
+                    if send_to_telegram(title, link, feed_url, HASHTAGS, entry):
                         sent_count += 1
                         dates[feed_url] = {'last_date': pub_date}
                         save_dates(dates)
-                        time.sleep(random.uniform(*REQUEST_DELAY))
                     else:
                         logger.error("  ❌ Ошибка отправки")
                         break
             else:
                 logger.info(f"  ✅ Нет новых новостей")
 
-            time.sleep(random.uniform(*REQUEST_DELAY))
+            time.sleep(random.uniform(CONFIG['REQUEST_DELAY_MIN'], CONFIG['REQUEST_DELAY_MAX']))
 
         except Exception as e:
             logger.error(f"  ❌ Ошибка: {e}")
-            time.sleep(random.uniform(*REQUEST_DELAY))
+            time.sleep(random.uniform(CONFIG['REQUEST_DELAY_MIN'], CONFIG['REQUEST_DELAY_MAX']))
             continue
 
     save_dates(dates)
-
     logger.info(f"📊 Проверка завершена. Отправлено: {sent_count} новостей")
     logger.info(f"⏱ Время выполнения: {time.time() - start_time:.1f} сек")
     logger.info("=" * 60)
@@ -226,11 +218,10 @@ def check_feeds():
 
 if __name__ == '__main__':
     logger.info("=" * 60)
-    logger.info("🚀 RSS to Telegram Bot запущен")
-    logger.info(f"⏰ Задержка между запросами: {REQUEST_DELAY[0]}-{REQUEST_DELAY[1]} сек")
-    logger.info(f"⏳ Проверяем новости за: {MAX_HOURS_BACK} часов")
+    RSS_FEEDS, HASHTAGS = load_rss_feeds()
+    logger.info(f"⏰ Задержка между запросами: {CONFIG['REQUEST_DELAY_MIN']}-{CONFIG['REQUEST_DELAY_MAX']} сек")
+    logger.info(f"⏳ Проверяем новости за: {CONFIG['MAX_HOURS_BACK']} часов")
     logger.info("=" * 60)
-
+    
     sent_count = check_feeds()
-
     logger.info(f"✅ Бот завершил работу. Отправлено: {sent_count} постов")

@@ -1,0 +1,17 @@
+https://naked-science.ru/feed/#научпоп
+https://androidinsider.ru/feed#mobile
+https://www.opennet.ru/opennews/opennews_full_utf.rss#linux
+https://www.ixbt.com/live/rss/blog/mobile/#mobile
+https://www.ixbt.com/live/rss/blog/gadgets/#гаджеты
+https://archlinux.org/feeds/news/#linux
+https://ololbu.ru/rss-bridge/?action=display&bridge=TelegramBridge&username=%40kde_ru_news&format=Mrss#linux
+https://ololbu.ru/rss-bridge/?action=display&bridge=TelegramBridge&username=%40prohitec&format=Mrss#ProHiTech
+https://ololbu.ru/rss-bridge/?action=display&bridge=TelegramBridge&username=%40droidergram&format=Mrss#Droider
+https://naukatv.ru/rss#научпоп
+https://www.ixbt.com/live/rss/blog/science/#научпоп
+https://www.ixbt.com/live/rss/blog/digs/#аудио
+https://www.ixbt.com/live/rss/blog/sw/#os
+https://www.ixbt.com/live/rss/blog/mobilepc/#ноутбуки
+https://www.ixbt.com/live/rss/blog/periphery/#переферия
+https://www.ixbt.com/live/rss/blog/platform/#пк
+https://www.ixbt.com/live/rss/blog/3dv/#gpu
