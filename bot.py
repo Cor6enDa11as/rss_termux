@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-🚀 RSS to Telegram Bot (Termux Optimized)
-"""
-
 import os
 import json
 import feedparser
@@ -11,30 +7,30 @@ import time
 import logging
 import random
 from datetime import datetime, timezone, timedelta
-#from dotenv import load_dotenv
 from urllib.parse import urlparse
 
 # ==================== Загрузка настроек ====================
-#load_dotenv()
-#BOT_TOKEN = os.getenv('BOT_TOKEN')
-#CHANNEL_ID = os.getenv('CHANNEL_ID')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+CHANNEL_ID = os.getenv('CHANNEL_ID')
 
-#if not BOT_TOKEN or not CHANNEL_ID:
-#    logging.error("❌ Установите BOT_TOKEN и CHANNEL_ID в .env файле!")
-#    exit(1)
+if not BOT_TOKEN or not CHANNEL_ID:
+    print("❌ Установите BOT_TOKEN и CHANNEL_ID в GitHub Secrets!")
+    exit(1)
 
-# ✅ ТЕРМИНАЛЬНЫЕ НАСТРОЙКИ TERMUX
 CONFIG = {
-    'REQUEST_DELAY_MIN': int(os.getenv('REQUEST_DELAY_MIN', '8')),
-    'REQUEST_DELAY_MAX': int(os.getenv('REQUEST_DELAY_MAX', '20')),
+    'REQUEST_DELAY_MIN': int(os.getenv('REQUEST_DELAY_MIN', '5')),
+    'REQUEST_DELAY_MAX': int(os.getenv('REQUEST_DELAY_MAX', '10')),
     'MAX_HOURS_BACK': int(os.getenv('MAX_HOURS_BACK', '4'))
 }
+
+# ==================== Глобальные переменные ====================
+RSS_FEEDS = []
+HASHTAGS = {}
 
 # ==================== Настройка логирования ====================
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler('bot.log'), logging.StreamHandler()]
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -42,16 +38,17 @@ logger = logging.getLogger(__name__)
 
 def load_rss_feeds():
     """📰 Загружает RSS-ленты и хэштеги"""
+    global RSS_FEEDS, HASHTAGS
     feeds = []
     hashtags = {}
-    
+
     try:
         with open('feeds.txt', 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith('#'):
                     continue
-                
+
                 if '#' in line:
                     url, tag = line.split('#', 1)
                     feeds.append(url.strip())
@@ -59,17 +56,18 @@ def load_rss_feeds():
                 else:
                     feeds.append(line)
                     hashtags[line] = '#новости'
-    
+
     except FileNotFoundError:
         logger.error("❌ Файл feeds.txt не найден")
         exit(1)
-    
+
     if not feeds:
         logger.error("❌ Нет RSS-лент")
         exit(1)
-    
+
+    RSS_FEEDS = feeds
+    HASHTAGS = hashtags
     logger.info(f"📰 Загружено: {len(feeds)} лент")
-    return feeds, hashtags
 
 def load_dates():
     """📁 Загружает историю отправленных постов"""
@@ -89,7 +87,7 @@ def save_dates(dates_dict):
     for url, info in dates_dict.items():
         if isinstance(info, dict) and 'last_date' in info:
             data_to_save[url] = {'last_date': info['last_date'].isoformat()}
-    
+
     with open('dates.json', 'w', encoding='utf-8') as f:
         json.dump(data_to_save, f, indent=2, ensure_ascii=False)
 
@@ -98,7 +96,7 @@ def send_to_telegram(title, link, feed_url, hashtags_dict, entry):
     try:
         clean_title = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
         hashtag = hashtags_dict.get(feed_url, '#новости')
-        
+
         author = getattr(entry, 'author', '')
         if author:
             author_hashtag = author.replace(" ", "")
@@ -119,14 +117,14 @@ def send_to_telegram(title, link, feed_url, hashtags_dict, entry):
 
         response = requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage',
                                data=data, timeout=10)
-        
+
         if response.status_code == 200:
-            time.sleep(random.uniform(20, 30))
+            time.sleep(random.uniform(1, 3))  # Уменьшено для Actions
             return True
         else:
             logger.error(f"❌ TG ответ: {response.status_code}")
             return False
-        
+
     except Exception as e:
         logger.error(f"🤖 Ошибка отправки: {e}")
         return False
@@ -162,9 +160,9 @@ def check_feeds():
     for feed_url in RSS_FEEDS:
         try:
             logger.info(f"📰 Проверка: {feed_url[:50]}...")
-            
+
             last_date = dates.get(feed_url, {}).get('last_date')
-            threshold_date = (datetime.now(timezone.utc) - timedelta(hours=CONFIG['MAX_HOURS_BACK']) 
+            threshold_date = (datetime.now(timezone.utc) - timedelta(hours=CONFIG['MAX_HOURS_BACK'])
                             if last_date is None else last_date)
 
             feed = parse_feed(feed_url)
@@ -185,12 +183,12 @@ def check_feeds():
                 for entry, pub_date in new_entries:
                     title = getattr(entry, 'title', 'Без названия')
                     link = getattr(entry, 'link', '')
-                    
+
                     if not link:
                         continue
 
                     logger.info(f"  📤 Отправка [{pub_date.strftime('%H:%M')}]: {title[:60]}...")
-                    
+
                     if send_to_telegram(title, link, feed_url, HASHTAGS, entry):
                         sent_count += 1
                         dates[feed_url] = {'last_date': pub_date}
@@ -218,10 +216,11 @@ def check_feeds():
 
 if __name__ == '__main__':
     logger.info("=" * 60)
-    RSS_FEEDS, HASHTAGS = load_rss_feeds()
+    load_rss_feeds()
     logger.info(f"⏰ Задержка между запросами: {CONFIG['REQUEST_DELAY_MIN']}-{CONFIG['REQUEST_DELAY_MAX']} сек")
     logger.info(f"⏳ Проверяем новости за: {CONFIG['MAX_HOURS_BACK']} часов")
     logger.info("=" * 60)
-    
+
     sent_count = check_feeds()
     logger.info(f"✅ Бот завершил работу. Отправлено: {sent_count} постов")
+
