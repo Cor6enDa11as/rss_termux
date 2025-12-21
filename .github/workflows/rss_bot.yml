@@ -1,7 +1,7 @@
-name: RSS Telegram Bot
+name: Telegram Bot
 on:
   schedule:
-    - cron: '*/30 2-20 * * *'
+    - cron: '*/15 2-20 * * *'
   workflow_dispatch:
 jobs:
   check-feeds:
