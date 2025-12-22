@@ -161,9 +161,12 @@ def check_feeds():
         try:
             logger.info(f"📰 Проверка: {feed_url[:50]}...")
 
+            # ✅ ФИКС ДУБЛЕЙ - ИСПРАВЛЕННАЯ ЛОГИКА
             last_date = dates.get(feed_url, {}).get('last_date')
-            threshold_date = (datetime.now(timezone.utc) - timedelta(hours=CONFIG['MAX_HOURS_BACK'])
-                            if last_date is None else last_date)
+            if last_date is None:
+                threshold_date = datetime.now(timezone.utc) - timedelta(hours=24)
+            else:
+                threshold_date = last_date
 
             feed = parse_feed(feed_url)
             if not feed:
@@ -223,4 +226,3 @@ if __name__ == '__main__':
 
     sent_count = check_feeds()
     logger.info(f"✅ Бот завершил работу. Отправлено: {sent_count} постов")
-
