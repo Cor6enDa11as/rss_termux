@@ -1,4 +1,4 @@
-ame: RSS Telegram Bot
+name: RSS Telegram Bot
 on:
   schedule:
     - cron: '0,30 2-20 * * *'  # каждые 30 мин 5-22:30 MSK
