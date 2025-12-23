@@ -19,11 +19,11 @@ if not BOT_TOKEN or not CHANNEL_ID:
 CONFIG = {
     'REQUEST_DELAY_MIN': 5,
     'REQUEST_DELAY_MAX': 10,
-    'MAX_HOURS_BACK': 4
+    'MAX_HOURS_BACK': 24  # ✅ ВЕРНУЛИ 24ч
 }
 
 # ==================== Глобальные переменные ====================
-FEEDS = {}  # ✅ УЛУЧШЕНИЕ 1: один словарь вместо двух списков
+FEEDS = {}
 
 # ==================== Настройка логирования ====================
 logging.basicConfig(
@@ -88,13 +88,12 @@ def save_dates(dates_dict):
 def send_to_telegram(title, link, feed_url, entry):
     """📨 Отправляет сообщение (ПРЕВЬЮ СВЕРХУ!)"""
     try:
-        # ✅ УЛУЧШЕНИЕ 5: полное HTML экранирование
         clean_title = (title.replace('&', '&amp;')
                           .replace('<', '&lt;')
                           .replace('>', '&gt;')
                           .replace('"', '&quot;')
                           .replace("'", '&#39;'))
-        hashtag = FEEDS.get(feed_url, '#новости')  # ✅ УЛУЧШЕНИЕ 1
+        hashtag = FEEDS.get(feed_url, '#новости')
 
         author = getattr(entry, 'author', '')
         if author:
@@ -107,14 +106,18 @@ def send_to_telegram(title, link, feed_url, entry):
             'chat_id': CHANNEL_ID,
             'text': message,
             'parse_mode': 'HTML',
-            'disable_web_page_preview': False
+            'link_preview_options': json.dumps({
+                'is_disabled': False,
+                'url': link,
+                'show_above_text': True  # ✅ ВЕРНУЛИ ПРЕВЬЮ СВЕРХУ!
+            })
         }
 
         response = requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage',
                                data=data, timeout=10)
 
         if response.status_code == 200:
-            return True  # ✅ УЛУЧШЕНИЕ 4: убрали sleep
+            return True
         else:
             logger.error(f"❌ TG ответ: {response.status_code}")
             return False
@@ -154,7 +157,7 @@ def check_feeds():
     dates = load_dates()
     sent_count = 0
 
-    for feed_url in FEEDS:  # ✅ УЛУЧШЕНИЕ 1
+    for feed_url in FEEDS:
         try:
             logger.info(f"📰 Проверка: {feed_url[:50]}...")
 
@@ -207,7 +210,6 @@ def check_feeds():
             time.sleep(random.uniform(CONFIG['REQUEST_DELAY_MIN'], CONFIG['REQUEST_DELAY_MAX']))
             continue
 
-    # ✅ УЛУЧШЕНИЕ 2: убрали лишний save_dates()
     logger.info(f"📊 Проверка завершена. Отправлено: {sent_count} новостей")
     logger.info(f"⏱ Время выполнения: {time.time() - start_time:.1f} сек")
     logger.info("=" * 60)
