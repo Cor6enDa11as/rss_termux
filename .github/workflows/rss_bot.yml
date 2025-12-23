@@ -4,7 +4,7 @@ on:
     - cron: '0,30 2-20 * * *'  # каждые 30 мин 5-22:30 MSK
   workflow_dispatch:
 permissions:
-  contents: write  # ← РАЗРЕШЕНИЕ на запись!
+  contents: write
 jobs:
   check-feeds:
     runs-on: ubuntu-latest
@@ -13,7 +13,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0  # ← ВАЖНО!
+        fetch-depth: 0
 
     - name: Setup Python
       uses: actions/setup-python@v5
@@ -29,17 +29,19 @@ jobs:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
 
-    - name: Commit dates.json
+    - name: Commit dates.json  # ✅ ИСПРАВЛЕННЫЙ БЛОК
       run: |
         git config user.name "RSS Bot"
         git config user.email "bot@github.com"
+
+        # ✅ ФИКС: синхронизация с remote
+        git pull --rebase origin main
+
         git add dates.json || true
         if git diff --staged --quiet; then
           echo "Нет изменений"
         else
           git commit -m "update dates $(date)"
-          git push
+          git push origin main
           echo "✅ dates.json сохранён!"
         fi
-
-
