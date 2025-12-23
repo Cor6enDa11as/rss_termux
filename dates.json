@@ -1,6 +1,6 @@
 {
   "https://naked-science.ru/feed/": {
-    "last_date": "2025-12-23T05:00:00+00:00"
+    "last_date": "2025-12-23T06:03:24+00:00"
   },
   "https://androidinsider.ru/feed": {
     "last_date": "2025-12-22T18:25:15+00:00"
@@ -12,16 +12,16 @@
     "last_date": "2025-12-22T23:03:01+00:00"
   },
   "https://www.ixbt.com/live/rss/blog/gadgets/": {
-    "last_date": "2025-12-22T11:18:51+00:00"
+    "last_date": "2025-12-23T06:26:34+00:00"
   },
   "https://ololbu.ru/rss-bridge/?action=display&bridge=TelegramBridge&username=%40prohitec&format=Mrss": {
     "last_date": "2025-12-22T19:11:29+00:00"
   },
   "https://naukatv.ru/rss": {
-    "last_date": "2025-12-22T15:42:04+00:00"
+    "last_date": "2025-12-23T06:05:45+00:00"
   },
   "https://www.ixbt.com/live/rss/blog/science/": {
-    "last_date": "2025-12-22T17:34:34+00:00"
+    "last_date": "2025-12-23T06:21:54+00:00"
   },
   "https://www.ixbt.com/live/rss/blog/digs/": {
     "last_date": "2025-12-23T04:11:31+00:00"
@@ -30,12 +30,18 @@
     "last_date": "2025-12-22T05:30:53+00:00"
   },
   "https://www.ixbt.com/live/rss/blog/mobilepc/": {
-    "last_date": "2025-12-22T18:26:16+00:00"
+    "last_date": "2025-12-23T06:28:26+00:00"
   },
   "https://www.ixbt.com/live/rss/blog/periphery/": {
     "last_date": "2025-12-22T20:07:25+00:00"
   },
   "https://ololbu.ru/rss-bridge/?action=display&bridge=TelegramBridge&username=%40droidergram&format=Mrss": {
     "last_date": "2025-12-22T09:23:31+00:00"
+  },
+  "https://www.ixbt.com/live/rss/blog/platform/": {
+    "last_date": "2025-12-23T06:27:10+00:00"
+  },
+  "https://www.ixbt.com/live/rss/blog/3dv/": {
+    "last_date": "2025-12-23T05:55:44+00:00"
   }
 }
