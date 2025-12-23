@@ -28,9 +28,6 @@ jobs:
       env:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
-        REQUEST_DELAY_MIN: 8
-        REQUEST_DELAY_MAX: 20
-        MAX_HOURS_BACK: 24  # Теперь можно 24ч!
 
     - name: Commit dates.json
       run: |

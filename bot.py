@@ -7,7 +7,6 @@ import time
 import logging
 import random
 from datetime import datetime, timezone, timedelta
-from urllib.parse import urlparse
 
 # ==================== Загрузка настроек ====================
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -18,14 +17,13 @@ if not BOT_TOKEN or not CHANNEL_ID:
     exit(1)
 
 CONFIG = {
-    'REQUEST_DELAY_MIN': int(os.getenv('REQUEST_DELAY_MIN', '5')),
-    'REQUEST_DELAY_MAX': int(os.getenv('REQUEST_DELAY_MAX', '10')),
-    'MAX_HOURS_BACK': int(os.getenv('MAX_HOURS_BACK', '4'))
+    'REQUEST_DELAY_MIN': 5,
+    'REQUEST_DELAY_MAX': 10,
+    'MAX_HOURS_BACK': 4
 }
 
 # ==================== Глобальные переменные ====================
-RSS_FEEDS = []
-HASHTAGS = {}
+FEEDS = {}  # ✅ УЛУЧШЕНИЕ 1: один словарь вместо двух списков
 
 # ==================== Настройка логирования ====================
 logging.basicConfig(
@@ -38,9 +36,8 @@ logger = logging.getLogger(__name__)
 
 def load_rss_feeds():
     """📰 Загружает RSS-ленты и хэштеги"""
-    global RSS_FEEDS, HASHTAGS
-    feeds = []
-    hashtags = {}
+    global FEEDS
+    feeds = {}
 
     try:
         with open('feeds.txt', 'r', encoding='utf-8') as f:
@@ -51,11 +48,9 @@ def load_rss_feeds():
 
                 if '#' in line:
                     url, tag = line.split('#', 1)
-                    feeds.append(url.strip())
-                    hashtags[url.strip()] = '#' + tag.strip()
+                    feeds[url.strip()] = '#' + tag.strip()
                 else:
-                    feeds.append(line)
-                    hashtags[line] = '#новости'
+                    feeds[line] = '#новости'
 
     except FileNotFoundError:
         logger.error("❌ Файл feeds.txt не найден")
@@ -65,8 +60,7 @@ def load_rss_feeds():
         logger.error("❌ Нет RSS-лент")
         exit(1)
 
-    RSS_FEEDS = feeds
-    HASHTAGS = hashtags
+    FEEDS = feeds
     logger.info(f"📰 Загружено: {len(feeds)} лент")
 
 def load_dates():
@@ -91,11 +85,16 @@ def save_dates(dates_dict):
     with open('dates.json', 'w', encoding='utf-8') as f:
         json.dump(data_to_save, f, indent=2, ensure_ascii=False)
 
-def send_to_telegram(title, link, feed_url, hashtags_dict, entry):
+def send_to_telegram(title, link, feed_url, entry):
     """📨 Отправляет сообщение (ПРЕВЬЮ СВЕРХУ!)"""
     try:
-        clean_title = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        hashtag = hashtags_dict.get(feed_url, '#новости')
+        # ✅ УЛУЧШЕНИЕ 5: полное HTML экранирование
+        clean_title = (title.replace('&', '&amp;')
+                          .replace('<', '&lt;')
+                          .replace('>', '&gt;')
+                          .replace('"', '&quot;')
+                          .replace("'", '&#39;'))
+        hashtag = FEEDS.get(feed_url, '#новости')  # ✅ УЛУЧШЕНИЕ 1
 
         author = getattr(entry, 'author', '')
         if author:
@@ -108,19 +107,14 @@ def send_to_telegram(title, link, feed_url, hashtags_dict, entry):
             'chat_id': CHANNEL_ID,
             'text': message,
             'parse_mode': 'HTML',
-            'link_preview_options': json.dumps({
-                'is_disabled': False,
-                'url': link,
-                'show_above_text': True
-            })
+            'disable_web_page_preview': False
         }
 
         response = requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage',
                                data=data, timeout=10)
 
         if response.status_code == 200:
-            time.sleep(random.uniform(1, 3))  # Уменьшено для Actions
-            return True
+            return True  # ✅ УЛУЧШЕНИЕ 4: убрали sleep
         else:
             logger.error(f"❌ TG ответ: {response.status_code}")
             return False
@@ -134,6 +128,9 @@ def parse_feed(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0', 'Accept': 'application/rss+xml'}
         response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code != 200:
+            logger.error(f"❌ HTTP {response.status_code}: {url[:40]}...")
+            return None
         feed = feedparser.parse(response.content)
         return feed if hasattr(feed, 'entries') and feed.entries else None
     except Exception as e:
@@ -151,22 +148,19 @@ def get_entry_date(entry):
 def check_feeds():
     """🔍 Основная функция проверки лент"""
     logger.info("=" * 60)
-    logger.info(f"🤖 [{len(RSS_FEEDS)} лент] {datetime.now().strftime('%H:%M')}")
+    logger.info(f"🤖 [{len(FEEDS)} лент] {datetime.now().strftime('%H:%M')}")
     start_time = time.time()
 
     dates = load_dates()
     sent_count = 0
 
-    for feed_url in RSS_FEEDS:
+    for feed_url in FEEDS:  # ✅ УЛУЧШЕНИЕ 1
         try:
             logger.info(f"📰 Проверка: {feed_url[:50]}...")
 
-            # ✅ ФИКС ДУБЛЕЙ - ИСПРАВЛЕННАЯ ЛОГИКА
             last_date = dates.get(feed_url, {}).get('last_date')
-            if last_date is None:
-                threshold_date = datetime.now(timezone.utc) - timedelta(hours=24)
-            else:
-                threshold_date = last_date
+            threshold_date = last_date if last_date else \
+                (datetime.now(timezone.utc) - timedelta(hours=CONFIG['MAX_HOURS_BACK']))
 
             feed = parse_feed(feed_url)
             if not feed:
@@ -183,6 +177,7 @@ def check_feeds():
                 logger.info(f"  📦 Найдено новых: {len(new_entries)}")
                 new_entries.sort(key=lambda x: x[1])
 
+                max_date = threshold_date
                 for entry, pub_date in new_entries:
                     title = getattr(entry, 'title', 'Без названия')
                     link = getattr(entry, 'link', '')
@@ -192,13 +187,16 @@ def check_feeds():
 
                     logger.info(f"  📤 Отправка [{pub_date.strftime('%H:%M')}]: {title[:60]}...")
 
-                    if send_to_telegram(title, link, feed_url, HASHTAGS, entry):
+                    if send_to_telegram(title, link, feed_url, entry):
                         sent_count += 1
-                        dates[feed_url] = {'last_date': pub_date}
-                        save_dates(dates)
+                        if pub_date > max_date:
+                            max_date = pub_date
                     else:
                         logger.error("  ❌ Ошибка отправки")
-                        break
+
+                if max_date > threshold_date:
+                    dates[feed_url] = {'last_date': max_date}
+                    save_dates(dates)
             else:
                 logger.info(f"  ✅ Нет новых новостей")
 
@@ -209,7 +207,7 @@ def check_feeds():
             time.sleep(random.uniform(CONFIG['REQUEST_DELAY_MIN'], CONFIG['REQUEST_DELAY_MAX']))
             continue
 
-    save_dates(dates)
+    # ✅ УЛУЧШЕНИЕ 2: убрали лишний save_dates()
     logger.info(f"📊 Проверка завершена. Отправлено: {sent_count} новостей")
     logger.info(f"⏱ Время выполнения: {time.time() - start_time:.1f} сек")
     logger.info("=" * 60)
