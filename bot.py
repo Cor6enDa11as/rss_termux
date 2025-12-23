@@ -17,9 +17,9 @@ if not BOT_TOKEN or not CHANNEL_ID:
     exit(1)
 
 CONFIG = {
-    'REQUEST_DELAY_MIN': 5,
-    'REQUEST_DELAY_MAX': 10,
-    'MAX_HOURS_BACK': 24  # ✅ ВЕРНУЛИ 24ч
+    'REQUEST_DELAY_MIN': 10,   # ✅ УВЕЛИЧИЛИ с 5
+    'REQUEST_DELAY_MAX': 15,  # ✅ УВЕЛИЧИЛИ с 10
+    'MAX_HOURS_BACK': 24
 }
 
 # ==================== Глобальные переменные ====================
@@ -109,7 +109,7 @@ def send_to_telegram(title, link, feed_url, entry):
             'link_preview_options': json.dumps({
                 'is_disabled': False,
                 'url': link,
-                'show_above_text': True  # ✅ ВЕРНУЛИ ПРЕВЬЮ СВЕРХУ!
+                'show_above_text': True
             })
         }
 
@@ -194,8 +194,13 @@ def check_feeds():
                         sent_count += 1
                         if pub_date > max_date:
                             max_date = pub_date
+
+                        # ✅ НОВОЕ: задержка между постами (2-4 сек)
+                        time.sleep(random.uniform(5, 10))
                     else:
                         logger.error("  ❌ Ошибка отправки")
+                        # ✅ При 429 - пауза 10 сек
+                        time.sleep(10)
 
                 if max_date > threshold_date:
                     dates[feed_url] = {'last_date': max_date}
