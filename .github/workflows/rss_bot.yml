@@ -29,20 +29,19 @@ jobs:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
 
-    - name: Commit dates.json  # ✅ ИСПРАВЛЕННЫЙ
+    - name: Commit dates.json  # ✅ ОКОНЧАТЕЛЬНЫЙ ФИКС
       run: |
         git config user.name "RSS Bot"
         git config user.email "bot@github.com"
 
-        # ✅ БЭКАП dates.json
-        cp dates.json dates.json.backup || true
+        # ✅ БЭКАП с другим именем
+        cp dates.json dates.json.new || true
 
-        # ✅ ОЧИСТКА
+        # ✅ Reset БЕЗ clean
         git reset --hard HEAD
-        git clean -fd
 
-        # ✅ ВОССТАНОВЛЕНИЕ dates.json
-        cp dates.json.backup dates.json || true
+        # ✅ Восстановление
+        mv dates.json.new dates.json || true
 
         # ✅ Pull + commit + push
         git pull origin main
