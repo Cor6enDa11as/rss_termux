@@ -29,14 +29,19 @@ jobs:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
 
-    - name: Commit dates.json  # ✅ ИСПРАВЛЕННЫЙ БЛОК
+    - name: Commit dates.json  # ✅ ВТОРОЙ ВАРИАНТ
       run: |
         git config user.name "RSS Bot"
         git config user.email "bot@github.com"
 
-        # ✅ ФИКС: синхронизация с remote
-        git pull --rebase origin main
+        # ✅ ОЧИСТКА + принудительный reset
+        git reset --hard HEAD
+        git clean -fd
 
+        # ✅ Pull свежие изменения
+        git pull origin main
+
+        # ✅ dates.json и push
         git add dates.json || true
         if git diff --staged --quiet; then
           echo "Нет изменений"
