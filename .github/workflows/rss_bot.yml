@@ -1,7 +1,7 @@
 name: RSS Telegram Bot
 on:
   schedule:
-    - cron: '0,30 2-20 * * *'  # каждые 30 мин 5-22:30 MSK
+    - cron: '0,30 2-20 * * *'
   workflow_dispatch:
 permissions:
   contents: write
@@ -29,19 +29,23 @@ jobs:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
 
-    - name: Commit dates.json  # ✅ ВТОРОЙ ВАРИАНТ
+    - name: Commit dates.json  # ✅ ИСПРАВЛЕННЫЙ
       run: |
         git config user.name "RSS Bot"
         git config user.email "bot@github.com"
 
-        # ✅ ОЧИСТКА + принудительный reset
+        # ✅ БЭКАП dates.json
+        cp dates.json dates.json.backup || true
+
+        # ✅ ОЧИСТКА
         git reset --hard HEAD
         git clean -fd
 
-        # ✅ Pull свежие изменения
-        git pull origin main
+        # ✅ ВОССТАНОВЛЕНИЕ dates.json
+        cp dates.json.backup dates.json || true
 
-        # ✅ dates.json и push
+        # ✅ Pull + commit + push
+        git pull origin main
         git add dates.json || true
         if git diff --staged --quiet; then
           echo "Нет изменений"
